@@ -33,7 +33,7 @@
 <script type="text/babel">
 const { useState, useEffect } = React;
 
-const KEY      = "poker-live-v1";
+const KEY      = "poker-live-v2";
 const HIST_KEY = "poker-mahau-historico";
 
 function loadHistorico() {
@@ -44,11 +44,14 @@ function loadMesa() {
   try { const v = localStorage.getItem(KEY); return v ? JSON.parse(v) : null; } catch { return null; }
 }
 function saveMesa(data) {
-  try { if (data === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+  try {
+    if (data === null) localStorage.removeItem(KEY);
+    else localStorage.setItem(KEY, JSON.stringify(data));
+  } catch {}
 }
 
 const fmtBRL = v => `R$ ${Number(v || 0).toLocaleString("pt-BR")}`;
-const uid    = () => Date.now() + Math.random();
+const uid    = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 const FORMAS = ["Pix", "Dinheiro", "Maquininha"];
 const BUYINS = [300, 500, 1000];
 const REBUYS = [300, 500, 1000, 1500, 2000];
@@ -73,6 +76,7 @@ function calcularAcertos(jogadores, cashouts) {
 }
 
 function exportarExcel(mesa) {
+  if (typeof XLSX === "undefined") throw new Error("XLSX não carregado");
   const rows = mesa.jogadores.map(j => {
     const totalRebuy = j.rebuys.reduce((s, r) => s + r.valor, 0);
     const totalPago  = (j.buyin || 0) + totalRebuy;
@@ -90,22 +94,23 @@ function exportarExcel(mesa) {
   const totalGeral = totalBuyin + totalRebuy;
   const rakeValor  = Math.round(totalGeral * rake.percent / 100);
   rows.push({ "Jogador": "TOTAL", "Buy-in (R$)": totalBuyin, "Forma Buy-in": "", "Total Rebuy (R$)": totalRebuy, "Qtd Rebuys": "", "Total Pago (R$)": totalGeral, "Cashout (R$)": "", "Resultado (R$)": "" });
-  if (rake.percent > 0) rows.push({ "Jogador": `Rake ${rake.percent}%`, "Buy-in (R$)": rakeValor, "Forma Buy-in": "", "Total Rebuy (R$)": "", "Qtd Rebuys": "", "Total Pago (R$)": "", "Cashout (R$)": "", "Resultado (R$)": "" });
+  if (rake.percent > 0)  rows.push({ "Jogador": `Rake ${rake.percent}%`, "Buy-in (R$)": rakeValor, "Forma Buy-in": "", "Total Rebuy (R$)": "", "Qtd Rebuys": "", "Total Pago (R$)": "", "Cashout (R$)": "", "Resultado (R$)": "" });
   if (rake.caixinha > 0) rows.push({ "Jogador": "Caixinha", "Buy-in (R$)": rake.caixinha, "Forma Buy-in": "", "Total Rebuy (R$)": "", "Qtd Rebuys": "", "Total Pago (R$)": "", "Cashout (R$)": "", "Resultado (R$)": "" });
   if (mesa.acertos && mesa.acertos.length > 0) {
-    rows.push({ "Jogador": "── ACERTOS ──", "Buy-in (R$)": "", "Forma Buy-in": "", "Total Rebuy (R$)": "", "Qtd Rebuys": "", "Total Pago (R$)": "", "Cashout (R$)": "", "Resultado (R$)": "" });
-    mesa.acertos.forEach(a => rows.push({ "Jogador": `${a.de} → ${a.para}`, "Buy-in (R$)": a.valor, "Forma Buy-in": a.forma, "Total Rebuy (R$)": "", "Qtd Rebuys": a.pago ? "PAGO" : "PENDENTE", "Total Pago (R$)": "", "Cashout (R$)": "", "Resultado (R$)": "" }));
+    rows.push({ "Jogador": "── ACERTOS ──" });
+    mesa.acertos.forEach(a => rows.push({ "Jogador": `${a.de} → ${a.para}`, "Buy-in (R$)": a.valor, "Forma Buy-in": a.forma, "Total Rebuy (R$)": "", "Qtd Rebuys": a.pago ? "PAGO" : "PENDENTE" }));
   }
   const ws = XLSX.utils.json_to_sheet(rows);
   ws["!cols"] = [22,13,14,16,11,15,13,15].map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Controle Mesa");
-  XLSX.writeFile(wb, `PokerMahau_${mesa.data.replace(/\//g,"-")}.xlsx`);
+  XLSX.writeFile(wb, `PokerMahau_${(mesa.data||"").replace(/\//g,"-")}.xlsx`);
 }
 
 const CSS = `
   .app { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
 
+  /* ── top bar ── */
   .top-bar {
     background: #0D200F; border-bottom: 1px solid #1E4020;
     padding: 10px 14px; display: flex; align-items: center;
@@ -123,11 +128,19 @@ const CSS = `
   .top-chip-val { font-family: 'Bebas Neue', sans-serif; font-size: 13px; color: #C9A84C; letter-spacing: 1px; line-height: 1.1; }
   .top-chip.rake .top-chip-val { color: #E86060; }
   .top-chip.caix .top-chip-val { color: #60AABB; }
-  .top-right { text-align: right; flex-shrink: 0; }
+  .top-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .top-btn { background: none; border: 1px solid #1E4020; color: #4A7A4A;
+    font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px;
+    text-transform: uppercase; padding: 6px 10px; cursor: pointer; border-radius: 2px; white-space: nowrap; }
+  .top-btn:active { border-color: #C9A84C; color: #C9A84C; }
+  .top-btn.danger { border-color: #3A1515; color: #CC4444; }
+  .top-btn.danger:active { background: #1A0A0A; }
+  .top-right { text-align: right; }
   .top-right-label { font-size: 7px; letter-spacing: 2px; text-transform: uppercase; color: #4A7A4A; }
   .top-right-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: #F0D080; letter-spacing: 2px; line-height: 1; }
   .top-right-sub { font-size: 7px; color: #4A7A4A; }
 
+  /* ── setup ── */
   .setup { flex: 1; display: flex; flex-direction: column; align-items: center;
     justify-content: center; padding: 32px 24px; gap: 28px; }
   .setup-title { font-family: 'Bebas Neue', sans-serif; font-size: 52px;
@@ -145,6 +158,7 @@ const CSS = `
   .field-row { display: flex; gap: 10px; }
   .field-row > div { flex: 1; }
 
+  /* ── buttons ── */
   .btn-gold { background: #C9A84C; color: #091509; border: none;
     font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px;
     padding: 14px 24px; cursor: pointer; width: 100%; border-radius: 2px; transition: all .2s; }
@@ -162,6 +176,7 @@ const CSS = `
     text-transform: uppercase; padding: 9px 16px; cursor: pointer; border-radius: 2px; flex: 1; }
   .btn-excel:active { background: #0F2A0F; }
 
+  /* ── main ── */
   .main { flex: 1; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 10px; }
 
   .rake-banner {
@@ -172,6 +187,19 @@ const CSS = `
   .rake-banner-lbl { font-size: 7px; letter-spacing: 1.5px; text-transform: uppercase; }
   .rake-banner-val { font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1px; }
 
+  /* ── encerrar banner ── */
+  .encerrar-banner {
+    background: #1A0A0A; border: 1px solid #3A1515; border-left: 3px solid #CC4444;
+    padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+    border-radius: 2px; cursor: pointer;
+  }
+  .encerrar-banner:active { background: #200A0A; }
+  .encerrar-banner-label { font-size: 8px; color: #7A3030; letter-spacing: 2px; text-transform: uppercase; }
+  .encerrar-banner-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: #CC4444; letter-spacing: 2px; }
+  .encerrar-banner-sub { font-size: 7px; color: #5A3030; letter-spacing: 1px; margin-top: 1px; }
+  .encerrar-banner-arrow { font-size: 18px; color: #CC4444; }
+
+  /* ── player cards ── */
   .player-card { background: #0D200F; border: 1px solid #1E4020; border-radius: 3px; overflow: hidden; transition: border-color .2s; }
   .player-card.expanded { border-color: #C9A84C; }
   .player-head { padding: 13px 16px; display: flex; align-items: center;
@@ -221,6 +249,7 @@ const CSS = `
 
   .bottom-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
+  /* ── add bar ── */
   .add-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
     background: #0D200F; border-top: 1px solid #1E4020; padding: 12px 16px; }
   .add-row { display: flex; gap: 8px; align-items: center; }
@@ -234,22 +263,23 @@ const CSS = `
     padding: 11px 20px; cursor: pointer; border-radius: 2px; flex-shrink: 0; }
   .add-btn:active { background: #F0D080; transform: scale(.96); }
 
-  .overlay { position: fixed; inset: 0; top: 0; right: 0; bottom: 0; left: 0;
+  /* ── overlays ── */
+  .overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0;
     background: rgba(0,0,0,.92); display: flex;
     align-items: flex-end; justify-content: center; z-index: 200; overflow: hidden; }
   .bottom-sheet { background: #0D200F; border-top: 1px solid #C9A84C; width: 100%;
     max-height: 92vh; max-height: 92dvh; overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 20px 18px 40px; display: flex; flex-direction: column; gap: 12px; }
+    padding: 20px 18px 44px; display: flex; flex-direction: column; gap: 12px; }
   .sheet-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px;
     color: #F0D080; letter-spacing: 3px; text-align: center; flex-shrink: 0; }
 
   .steps { display: flex; gap: 6px; justify-content: center; }
-  .step-dot { width: 6px; height: 6px; border-radius: 50%; background: #1E4020; }
+  .step-dot { width: 6px; height: 6px; border-radius: 50%; background: #1E4020; flex-shrink: 0; }
   .step-dot.active { background: #C9A84C; }
   .step-dot.done { background: #4A7A4A; }
 
-  /* cashout */
+  /* ── cashout ── */
   .cashout-row { display: flex; align-items: center; gap: 10px;
     padding: 10px 0; border-bottom: 1px solid #1E4020; }
   .cashout-name { flex: 1; font-family: 'Bebas Neue', sans-serif; font-size: 17px; color: #F0D080; letter-spacing: 1px; }
@@ -273,7 +303,7 @@ const CSS = `
   .diff-warn { background: #1A1200; border: 1px solid #4A3800; padding: 8px 12px;
     border-radius: 2px; font-size: 9px; color: #C9A84C; letter-spacing: 1px; text-align: center; }
 
-  /* resultado */
+  /* ── resultados ── */
   .resultado-row { display: flex; justify-content: space-between; align-items: center;
     padding: 9px 0; border-bottom: 1px solid #1E4020; }
   .resultado-nome { font-family: 'Bebas Neue', sans-serif; font-size: 17px; color: #F0D080; letter-spacing: 1px; }
@@ -283,7 +313,7 @@ const CSS = `
   .resultado-saldo.neg { color: #CC4444; }
   .resultado-saldo.zero { color: #7A7A7A; }
 
-  /* acertos */
+  /* ── acertos ── */
   .acerto-card { background: #091509; border: 1px solid #1E4020;
     padding: 12px; display: flex; flex-direction: column; gap: 8px; border-radius: 2px; }
   .acerto-card.pago { border-color: #2A5030; opacity: .75; }
@@ -304,15 +334,15 @@ const CSS = `
   .acerto-pago-btn.done { background: #2A5030; color: #91D891; }
   .acerto-badge { font-size: 8px; color: #5ABB5A; letter-spacing: 1px; }
 
-  /* histórico */
-  .tab-bar { display: flex; border-bottom: 1px solid #1E4020; }
+  /* ── histórico ── */
+  .tab-bar { display: flex; border-bottom: 1px solid #1E4020; flex-shrink: 0; }
   .tab { flex: 1; padding: 8px; font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
     text-align: center; cursor: pointer; color: #4A7A4A; border-bottom: 2px solid transparent; }
   .tab.active { color: #C9A84C; border-bottom-color: #C9A84C; }
   .hist-block { border-bottom: 1px solid #1E4020; padding-bottom: 14px; margin-bottom: 14px; }
-  .hist-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-  .hist-date { font-family: 'Bebas Neue', sans-serif; font-size: 19px; color: #F0D080; letter-spacing: 1px; }
-  .hist-total { font-family: 'Bebas Neue', sans-serif; font-size: 19px; color: #C9A84C; letter-spacing: 1px; }
+  .hist-header { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: baseline; }
+  .hist-date { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: #F0D080; letter-spacing: 1px; }
+  .hist-total { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: #C9A84C; letter-spacing: 1px; }
   .hist-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 8px; }
   .hist-cell { background: #091509; border: 1px solid #1E4020; padding: 6px 8px; }
   .hist-cell-lbl { font-size: 7px; color: #4A7A4A; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
@@ -323,15 +353,16 @@ const CSS = `
   .hist-res-val.pos { color: #5ABB5A; }
   .hist-res-val.neg { color: #CC4444; }
 
-  /* jogador stats */
+  /* ── jogador stats ── */
   .jogador-stat { border-bottom: 1px solid #1E4020; padding-bottom: 12px; margin-bottom: 12px; }
   .jogador-stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .jogador-stat-nome { font-family: 'Bebas Neue', sans-serif; font-size: 19px; color: #F0D080; letter-spacing: 1px; }
-  .jogador-stat-res { font-family: 'Bebas Neue', sans-serif; font-size: 21px; letter-spacing: 1px; }
+  .jogador-stat-nome { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: #F0D080; letter-spacing: 1px; }
+  .jogador-stat-res { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; }
   .jogador-stat-res.pos { color: #5ABB5A; }
   .jogador-stat-res.neg { color: #CC4444; }
   .jogador-stat-res.zero { color: #7A7A7A; }
 
+  /* ── misc ── */
   .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 8px; padding: 40px;
     color: #2E4A2E; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
@@ -340,33 +371,36 @@ const CSS = `
   .toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
     background: #1A3020; border: 1px solid #C9A84C; color: #F0D080;
     font-size: 11px; letter-spacing: 1px; padding: 10px 20px; z-index: 999;
-    border-radius: 2px; white-space: nowrap; animation: pop .2s ease; }
+    border-radius: 2px; white-space: nowrap; animation: pop .2s ease; pointer-events: none; }
   @keyframes pop { from { transform: translateX(-50%) scale(.9); opacity:0; }
                    to   { transform: translateX(-50%) scale(1); opacity:1; } }
 
-  .confirm-modal { position: fixed; inset: 0; background: rgba(0,0,0,.92);
+  .confirm-modal { position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+    background: rgba(0,0,0,.92);
     display: flex; align-items: center; justify-content: center; z-index: 300; padding: 24px; }
   .confirm-box { background: #0D200F; border: 1px solid #CC4444;
     padding: 28px 24px; width: 100%; max-width: 320px;
     display: flex; flex-direction: column; gap: 16px; text-align: center; }
   .confirm-icon { font-size: 32px; }
   .confirm-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: #CC4444; letter-spacing: 2px; }
-  .confirm-name { font-size: 14px; color: #F0D080; letter-spacing: 1px; }
+  .confirm-name { font-size: 13px; color: #F0D080; letter-spacing: 1px; }
   .confirm-sub { font-size: 9px; color: #4A7A4A; letter-spacing: 1px; text-transform: uppercase; }
   .confirm-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
   input[type=number]::-webkit-inner-spin-button { opacity: .4; }
 `;
 
 function App() {
-  const [mesa, setMesa]           = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [expanded, setExpanded]   = useState(null);
-  const [addName, setAddName]     = useState("");
-  const [toast, setToast]         = useState(null);
-  const [historico, setHistorico] = useState([]);
-  const [showHist, setShowHist]   = useState(false);
-  const [histTab, setHistTab]     = useState("mesas");
-  const [confirmRemove, setConfirmRemove] = useState(null);
+  const [mesa, setMesa]               = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [expanded, setExpanded]       = useState(null);
+  const [addName, setAddName]         = useState("");
+  const [toast, setToast]             = useState(null);
+  const [historico, setHistorico]     = useState([]);
+  const [showHist, setShowHist]       = useState(false);
+  const [histTab, setHistTab]         = useState("mesas");
+  const [confirmRemove, setConfirmRemove]     = useState(null);
+  const [confirmNovaMesa, setConfirmNovaMesa] = useState(false);
+
   const [setupData, setSetupData] = useState({
     data: new Date().toLocaleDateString("pt-BR"),
     rakePercent: "5",
@@ -374,25 +408,26 @@ function App() {
   });
 
   // painel jogador
-  const [rebuyVal, setRebuyVal]       = useState("");
-  const [rebuyForma, setRebuyForma]   = useState("Pix");
-  const [buyinForma, setBuyinForma]   = useState("Pix");
-  const [customBuyin, setCustomBuyin] = useState("");
+  const [rebuyVal, setRebuyVal]           = useState("");
+  const [rebuyForma, setRebuyForma]       = useState("Pix");
+  const [buyinForma, setBuyinForma]       = useState("Pix");
+  const [customBuyin, setCustomBuyin]     = useState("");
   const [selectedBuyin, setSelectedBuyin] = useState(null);
 
-  // encerrar: step 1=cashout 2=resultados+acertos
+  // encerrar: 0=fechado 1=cashout 2=resultados+acertos
   const [encStep, setEncStep]   = useState(0);
   const [cashouts, setCashouts] = useState({});
   const [acertos, setAcertos]   = useState([]);
 
   useEffect(() => {
-    const d = loadMesa(); if (d) setMesa(d);
+    const d = loadMesa();
+    if (d) setMesa(d);
     setHistorico(loadHistorico());
     setLoading(false);
   }, []);
 
   const persist   = m => { setMesa(m); saveMesa(m); };
-  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 1800); };
+  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2000); };
 
   const iniciarMesa = () => {
     persist({
@@ -402,6 +437,15 @@ function App() {
       jogadores: [],
     });
     showToast("Mesa iniciada ✓");
+  };
+
+  const novaMesa = () => {
+    persist(null);
+    setEncStep(0);
+    setConfirmNovaMesa(false);
+    setExpanded(null);
+    setSetupData({ data: new Date().toLocaleDateString("pt-BR"), rakePercent: "5", caixinha: "0" });
+    showToast("Mesa encerrada");
   };
 
   const addJogador = () => {
@@ -452,7 +496,7 @@ function App() {
 
   const abrirEncerrar = () => {
     const init = {};
-    mesa.jogadores.forEach(j => { init[j.id] = ""; });
+    (mesa.jogadores || []).forEach(j => { init[j.id] = ""; });
     setCashouts(init); setAcertos([]); setEncStep(1);
   };
 
@@ -464,19 +508,26 @@ function App() {
   const marcarAcerto = (id, field, val) =>
     setAcertos(prev => prev.map(a => a.id !== id ? a : { ...a, [field]: val }));
 
+  // BUG FIX: exportarExcel em try-catch — se o download falhar (iOS, CDN offline etc)
+  // a mesa ainda é salva no histórico e encerrada corretamente
   const encerrarMesa = () => {
     const resultados = mesa.jogadores.map(j => {
       const totalPago = (j.buyin||0) + j.rebuys.reduce((s,r)=>s+r.valor,0);
       const saiu      = Number(cashouts[j.id]||0);
       return { id: j.id, nome: j.nome, totalPago, cashout: saiu, resultado: saiu - totalPago };
     });
-    const registro = { ...mesa, cashouts, acertos, resultados,
+    const registro = {
+      ...mesa, cashouts, acertos, resultados,
       encerradaEm: new Date().toLocaleString("pt-BR"),
-      totalGeral, rakeValor, caixinhaVal, potLiquido };
-    exportarExcel({ ...mesa, cashouts, acertos });
+      totalGeral, rakeValor, caixinhaVal, potLiquido,
+    };
     const novoHist = [registro, ...loadHistorico()];
-    saveHistorico(novoHist); setHistorico(novoHist);
-    persist(null); setEncStep(0); showToast("Mesa encerrada e salva ✓");
+    saveHistorico(novoHist);
+    setHistorico(novoHist);
+    try { exportarExcel({ ...mesa, cashouts, acertos }); } catch(e) {}
+    persist(null);
+    setEncStep(0);
+    showToast("Mesa salva no histórico ✓");
   };
 
   // stats acumulados por jogador
@@ -495,7 +546,7 @@ function App() {
   })();
 
   if (loading) return (
-    <div style={{background:"#0B1A0D",minHeight:"100dvh",display:"flex",
+    <div style={{background:"#0B1A0D",minHeight:"100vh",display:"flex",
       alignItems:"center",justifyContent:"center",color:"#4A7A4A",
       fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:2}}>
       CARREGANDO...
@@ -507,7 +558,7 @@ function App() {
       <style>{CSS}</style>
       <div className="app">
 
-        {/* TOP BAR */}
+        {/* ── TOP BAR ── */}
         <div className="top-bar">
           <div className="top-logo">
             POKER MAHAU
@@ -533,18 +584,20 @@ function App() {
             </div>
           )}
 
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {historico.length > 0 && (
-              <button onClick={() => setShowHist(true)}
-                style={{background:"none",border:"1px solid #1E4020",color:"#4A7A4A",
-                  fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:1,
-                  textTransform:"uppercase",padding:"6px 10px",cursor:"pointer",borderRadius:2}}>
-                hist.({historico.length})
+          <div className="top-actions">
+            {/* Histórico — SEMPRE visível */}
+            <button className="top-btn" onClick={() => setShowHist(true)}>
+              {historico.length > 0 ? `hist.(${historico.length})` : "histórico"}
+            </button>
+            {/* Nova Mesa — só quando há mesa ativa */}
+            {mesa && (
+              <button className="top-btn danger" onClick={() => setConfirmNovaMesa(true)}>
+                nova mesa
               </button>
             )}
             {mesa && (
               <div className="top-right">
-                <div className="top-right-label">Total Mesa</div>
+                <div className="top-right-label">Total</div>
                 <div className="top-right-val">{fmtBRL(totalGeral)}</div>
                 <div className="top-right-sub">{numJog} jog.</div>
               </div>
@@ -552,7 +605,7 @@ function App() {
           </div>
         </div>
 
-        {/* SETUP */}
+        {/* ── SETUP ── */}
         {!mesa && (
           <div className="setup">
             <div>
@@ -584,10 +637,12 @@ function App() {
           </div>
         )}
 
-        {/* JOGADORES */}
+        {/* ── MESA ATIVA ── */}
         {mesa && (
           <>
             <div className="main">
+
+              {/* Banner rake */}
               {rake.percent > 0 && totalGeral > 0 && (
                 <div className="rake-banner">
                   <div className="rake-banner-col">
@@ -606,6 +661,16 @@ function App() {
                   )}
                 </div>
               )}
+
+              {/* Banner encerrar — sempre visível */}
+              <div className="encerrar-banner" onClick={abrirEncerrar}>
+                <div>
+                  <div className="encerrar-banner-label">Fim de jogo</div>
+                  <div className="encerrar-banner-title">ENCERRAR / CASHOUT</div>
+                  <div className="encerrar-banner-sub">Registra resultados e acertos entre jogadores</div>
+                </div>
+                <div className="encerrar-banner-arrow">›</div>
+              </div>
 
               {mesa.jogadores.length === 0 && (
                 <div className="empty-state">
@@ -725,9 +790,14 @@ function App() {
                           </div>
                         </div>
 
-                        <div style={{display:"flex",justifyContent:"flex-end"}}>
+                        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+                          {mesa.jogadores.length > 0 && (
+                            <button className="btn-excel" onClick={() => exportarExcel(mesa)}>
+                              ⬇ Planilha
+                            </button>
+                          )}
                           <button className="btn-red" onClick={() => remJogador(j.id)}>
-                            Remover jogador
+                            Remover
                           </button>
                         </div>
                       </div>
@@ -735,13 +805,6 @@ function App() {
                   </div>
                 );
               })}
-
-              {mesa.jogadores.length > 0 && (
-                <div className="bottom-actions">
-                  <button className="btn-excel" onClick={() => exportarExcel(mesa)}>⬇ Planilha</button>
-                  <button className="btn-red"   onClick={abrirEncerrar}>Encerrar Mesa</button>
-                </div>
-              )}
             </div>
 
             <div className="add-bar">
@@ -756,12 +819,14 @@ function App() {
           </>
         )}
 
-        {/* ENCERRAR STEP 1 — CASHOUT */}
+        {/* ── ENCERRAR STEP 1: CASHOUT ── */}
         {encStep === 1 && mesa && (
           <div className="overlay" onClick={() => setEncStep(0)}>
             <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
               <div className="steps">
-                <div className="step-dot active"/><div className="step-dot"/><div className="step-dot"/>
+                <div className="step-dot active"></div>
+                <div className="step-dot"></div>
+                <div className="step-dot"></div>
               </div>
               <div className="sheet-title">CASHOUT</div>
               <div style={{fontSize:9,color:"#4A7A4A",letterSpacing:1,textAlign:"center"}}>
@@ -784,6 +849,12 @@ function App() {
                 <span className="info-lbl">Pote a distribuir</span>
                 <span className="info-val">{fmtBRL(potLiquido)}</span>
               </div>
+
+              {mesa.jogadores.length === 0 && (
+                <div style={{textAlign:"center",color:"#4A7A4A",fontSize:10,padding:"12px 0",letterSpacing:1}}>
+                  Nenhum jogador na mesa
+                </div>
+              )}
 
               {mesa.jogadores.map(j => {
                 const totalPago = (j.buyin||0) + j.rebuys.reduce((s,r)=>s+r.valor,0);
@@ -814,12 +885,14 @@ function App() {
           </div>
         )}
 
-        {/* ENCERRAR STEP 2 — RESULTADOS + ACERTOS */}
+        {/* ── ENCERRAR STEP 2: RESULTADOS + ACERTOS ── */}
         {encStep === 2 && mesa && (
           <div className="overlay" onClick={() => setEncStep(1)}>
             <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
               <div className="steps">
-                <div className="step-dot done"/><div className="step-dot active"/><div className="step-dot"/>
+                <div className="step-dot done"></div>
+                <div className="step-dot active"></div>
+                <div className="step-dot"></div>
               </div>
               <div className="sheet-title">RESULTADOS</div>
 
@@ -884,7 +957,7 @@ function App() {
                             </button>
                           ))}
                         </div>
-                        <button className={`acerto-pago-btn ${a.pago?"done":""}`}
+                        <button className="acerto-pago-btn"
                           onClick={() => marcarAcerto(a.id,"pago",true)}>
                           ✓ PAGO
                         </button>
@@ -897,26 +970,31 @@ function App() {
               </div>
 
               <button className="btn-gold" onClick={encerrarMesa}>SALVAR E ENCERRAR MESA</button>
-              <button className="btn-outline" onClick={() => setEncStep(1)}>← Voltar</button>
+              <button className="btn-outline" onClick={() => setEncStep(1)}>← Voltar ao cashout</button>
             </div>
           </div>
         )}
 
-        {/* HISTÓRICO */}
+        {/* ── HISTÓRICO ── */}
         {showHist && (
           <div className="overlay" onClick={() => setShowHist(false)}>
             <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
               <div className="sheet-title">HISTÓRICO</div>
               <div className="tab-bar">
-                <div className={`tab ${histTab==="mesas"?"active":""}`}     onClick={() => setHistTab("mesas")}>Mesas</div>
-                <div className={`tab ${histTab==="jogadores"?"active":""}`} onClick={() => setHistTab("jogadores")}>Jogadores</div>
+                <div className={`tab ${histTab==="mesas"?"active":""}`}
+                  onClick={() => setHistTab("mesas")}>Mesas</div>
+                <div className={`tab ${histTab==="jogadores"?"active":""}`}
+                  onClick={() => setHistTab("jogadores")}>Jogadores</div>
               </div>
 
               {histTab === "mesas" && (
-                <>
+                <div>
                   {historico.length === 0 && (
-                    <div style={{textAlign:"center",color:"#4A7A4A",fontSize:11,padding:"20px 0"}}>
-                      Nenhuma mesa encerrada ainda
+                    <div style={{textAlign:"center",color:"#4A7A4A",fontSize:11,padding:"32px 0",letterSpacing:1}}>
+                      Nenhuma mesa encerrada ainda.<br/>
+                      <span style={{fontSize:9,display:"block",marginTop:8}}>
+                        Encerre uma mesa para ver o histórico aqui.
+                      </span>
                     </div>
                   )}
                   {historico.map((h, i) => {
@@ -950,7 +1028,7 @@ function App() {
                           </div>
                         )}
                         <div style={{marginTop:8,display:"flex",justifyContent:"flex-end"}}>
-                          <button onClick={() => exportarExcel(h)}
+                          <button onClick={() => { try { exportarExcel(h); } catch(e) { showToast("Erro ao exportar"); } }}
                             style={{background:"#0A200A",border:"1px solid #1A5A1A",color:"#5ABB5A",
                               fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:1,
                               textTransform:"uppercase",padding:"6px 12px",cursor:"pointer",borderRadius:2}}>
@@ -960,14 +1038,17 @@ function App() {
                       </div>
                     );
                   })}
-                </>
+                </div>
               )}
 
               {histTab === "jogadores" && (
-                <>
+                <div>
                   {statsJogadores.length === 0 && (
-                    <div style={{textAlign:"center",color:"#4A7A4A",fontSize:11,padding:"20px 0"}}>
-                      Nenhum dado ainda
+                    <div style={{textAlign:"center",color:"#4A7A4A",fontSize:11,padding:"32px 0",letterSpacing:1}}>
+                      Nenhum dado ainda.<br/>
+                      <span style={{fontSize:9,display:"block",marginTop:8}}>
+                        Complete mesas com cashout para ver stats aqui.
+                      </span>
                     </div>
                   )}
                   {statsJogadores.map(s => (
@@ -988,7 +1069,7 @@ function App() {
                       </div>
                     </div>
                   ))}
-                </>
+                </div>
               )}
 
               <button className="btn-outline" onClick={() => setShowHist(false)}>Fechar</button>
@@ -996,7 +1077,31 @@ function App() {
           </div>
         )}
 
-        {/* CONFIRMAÇÃO REMOÇÃO */}
+        {/* ── CONFIRMAR NOVA MESA (abandona mesa ativa) ── */}
+        {confirmNovaMesa && (
+          <div className="confirm-modal">
+            <div className="confirm-box">
+              <div className="confirm-icon">♠</div>
+              <div className="confirm-title">Nova Mesa?</div>
+              <div className="confirm-name">
+                A mesa atual será descartada sem salvar.
+              </div>
+              <div className="confirm-sub">Para salvar o histórico, encerre pelo cashout</div>
+              <div className="confirm-btns">
+                <button className="btn-red" style={{width:"100%",padding:"12px",fontSize:12}}
+                  onClick={novaMesa}>
+                  Descartar e criar nova
+                </button>
+                <button className="btn-outline" style={{width:"100%",padding:"12px"}}
+                  onClick={() => setConfirmNovaMesa(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONFIRMAR REMOÇÃO DE JOGADOR ── */}
         {confirmRemove && (
           <div className="confirm-modal">
             <div className="confirm-box">
