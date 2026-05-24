@@ -77,11 +77,12 @@ function calcularAcertos(jogadores, cashouts) {
 
 function exportarExcel(mesa) {
   if (typeof XLSX === "undefined") throw new Error("XLSX não carregado");
+  const cashouts = mesa.cashouts || {};
   const rows = mesa.jogadores.map(j => {
     const totalRebuy = j.rebuys.reduce((s, r) => s + r.valor, 0);
     const totalPago  = (j.buyin || 0) + totalRebuy;
-    const cashout    = mesa.cashouts ? Number(mesa.cashouts[j.id] || 0) : "";
-    const resultado  = mesa.cashouts ? cashout - totalPago : "";
+    const cashout    = Number(cashouts[j.id] || 0);
+    const resultado  = cashout - totalPago;
     return {
       "Jogador": j.nome, "Buy-in (R$)": j.buyin || 0, "Forma Buy-in": j.buyinForma || "—",
       "Total Rebuy (R$)": totalRebuy, "Qtd Rebuys": j.rebuys.length,
@@ -115,6 +116,7 @@ const CSS = `
     background: #0D200F; border-bottom: 1px solid #1E4020;
     padding: 10px 14px; display: flex; align-items: center;
     justify-content: space-between; position: sticky; top: 0; z-index: 50; gap: 8px;
+    flex-shrink: 0;
   }
   .top-logo { font-family: 'Bebas Neue', sans-serif; font-size: 19px;
     letter-spacing: 3px; color: #C9A84C; line-height: 1; flex-shrink: 0; }
@@ -132,25 +134,49 @@ const CSS = `
   .top-btn { background: none; border: 1px solid #1E4020; color: #4A7A4A;
     font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px;
     text-transform: uppercase; padding: 6px 10px; cursor: pointer; border-radius: 2px; white-space: nowrap; }
+  .top-btn:hover { border-color: #2E6030; color: #6A9A6A; }
   .top-btn:active { border-color: #C9A84C; color: #C9A84C; }
   .top-btn.danger { border-color: #3A1515; color: #CC4444; }
+  .top-btn.danger:hover { background: #120808; }
   .top-btn.danger:active { background: #1A0A0A; }
   .top-right { text-align: right; }
   .top-right-label { font-size: 7px; letter-spacing: 2px; text-transform: uppercase; color: #4A7A4A; }
   .top-right-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: #F0D080; letter-spacing: 2px; line-height: 1; }
   .top-right-sub { font-size: 7px; color: #4A7A4A; }
 
-  /* ── setup ── */
-  .setup { flex: 1; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; padding: 32px 24px; gap: 28px; }
-  .setup-title { font-family: 'Bebas Neue', sans-serif; font-size: 52px;
-    color: #C9A84C; letter-spacing: 6px; text-align: center; line-height: 1; }
-  .setup-sub { font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
-    color: #4A7A4A; text-align: center; }
-  .setup-card { background: #0D200F; border: 1px solid #1E4020; padding: 24px;
-    width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
-  .field-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase;
-    color: #7A6228; margin-bottom: 6px; }
+  /* ── dashboard ── */
+  .dashboard { flex: 1; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .dash-hero { padding: 28px 20px 20px; border-bottom: 1px solid #1E4020; }
+  .dash-title { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: #C9A84C; letter-spacing: 6px; line-height: 1; }
+  .dash-sub { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #4A7A4A; margin-top: 6px; }
+  .dash-nova { padding: 16px 16px 0; }
+  .dash-tabs { margin: 16px 16px 0; }
+  .dash-content { padding: 0 16px 40px; }
+
+  /* ── buttons ── */
+  .btn-gold { background: #C9A84C; color: #091509; border: none;
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px;
+    padding: 14px 24px; cursor: pointer; width: 100%; border-radius: 2px; transition: all .2s; }
+  .btn-gold:hover { background: #DDB85C; }
+  .btn-gold:active { transform: scale(.97); background: #F0D080; }
+  .btn-outline { background: none; border: 1px solid #1E4020; color: #4A7A4A;
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; padding: 9px 16px; cursor: pointer; border-radius: 2px; }
+  .btn-outline:hover { border-color: #2E6030; color: #6A9A6A; }
+  .btn-outline:active { border-color: #C9A84C; color: #C9A84C; }
+  .btn-red { background: none; border: 1px solid #3A1515; color: #CC4444;
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; padding: 9px 16px; cursor: pointer; border-radius: 2px; }
+  .btn-red:hover { background: #0E0606; }
+  .btn-red:active { background: #1A0A0A; }
+  .btn-excel { background: #0A200A; border: 1px solid #1A5A1A; color: #5ABB5A;
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; padding: 9px 16px; cursor: pointer; border-radius: 2px; flex: 1; }
+  .btn-excel:hover { background: #0C280C; }
+  .btn-excel:active { background: #0F2A0F; }
+
+  /* field shared */
+  .field-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: #7A6228; margin-bottom: 6px; }
   .field-input { background: #091509; border: 1px solid #1E4020; color: #E8DFC0;
     font-family: 'DM Mono', monospace; font-size: 14px; padding: 11px 14px;
     outline: none; width: 100%; border-radius: 2px; transition: border .15s; }
@@ -158,30 +184,13 @@ const CSS = `
   .field-row { display: flex; gap: 10px; }
   .field-row > div { flex: 1; }
 
-  /* ── buttons ── */
-  .btn-gold { background: #C9A84C; color: #091509; border: none;
-    font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px;
-    padding: 14px 24px; cursor: pointer; width: 100%; border-radius: 2px; transition: all .2s; }
-  .btn-gold:active { transform: scale(.97); background: #F0D080; }
-  .btn-outline { background: none; border: 1px solid #1E4020; color: #4A7A4A;
-    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
-    text-transform: uppercase; padding: 9px 16px; cursor: pointer; border-radius: 2px; }
-  .btn-outline:active { border-color: #C9A84C; color: #C9A84C; }
-  .btn-red { background: none; border: 1px solid #3A1515; color: #CC4444;
-    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
-    text-transform: uppercase; padding: 9px 16px; cursor: pointer; border-radius: 2px; }
-  .btn-red:active { background: #1A0A0A; }
-  .btn-excel { background: #0A200A; border: 1px solid #1A5A1A; color: #5ABB5A;
-    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 1px;
-    text-transform: uppercase; padding: 9px 16px; cursor: pointer; border-radius: 2px; flex: 1; }
-  .btn-excel:active { background: #0F2A0F; }
-
-  /* ── main ── */
+  /* ── main (mesa ativa) ── */
   .main { flex: 1; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 10px; }
 
   .rake-banner {
     background: #0D200F; border: 1px solid #1E4020; border-left: 3px solid #E86060;
-    padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border-radius: 2px;
+    padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;
+    border-radius: 2px; gap: 8px;
   }
   .rake-banner-col { display: flex; flex-direction: column; gap: 1px; }
   .rake-banner-lbl { font-size: 7px; letter-spacing: 1.5px; text-transform: uppercase; }
@@ -193,6 +202,7 @@ const CSS = `
     padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
     border-radius: 2px; cursor: pointer;
   }
+  .encerrar-banner:hover { background: #1E0C0C; }
   .encerrar-banner:active { background: #200A0A; }
   .encerrar-banner-label { font-size: 8px; color: #7A3030; letter-spacing: 2px; text-transform: uppercase; }
   .encerrar-banner-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: #CC4444; letter-spacing: 2px; }
@@ -202,8 +212,11 @@ const CSS = `
   /* ── player cards ── */
   .player-card { background: #0D200F; border: 1px solid #1E4020; border-radius: 3px; overflow: hidden; transition: border-color .2s; }
   .player-card.expanded { border-color: #C9A84C; }
+  .player-card.has-cashout { border-color: #2A5030; }
+  .player-card.has-cashout.expanded { border-color: #C9A84C; }
   .player-head { padding: 13px 16px; display: flex; align-items: center;
     justify-content: space-between; cursor: pointer; gap: 12px; user-select: none; }
+  .player-head:hover { background: #0F2411; }
   .player-head:active { background: #112214; }
   .player-left { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
   .player-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: #F0D080;
@@ -218,6 +231,8 @@ const CSS = `
   .pill-buyin { background: #1A3020; border: 1px solid #2A5030; color: #6AB; }
   .pill-rebuy { background: #2A1A00; border: 1px solid #4A3000; color: #C9A84C; }
   .pill-forma { background: #111; border: 1px solid #222; color: #7A7A7A; font-size: 8px; }
+  .pill-cashout-pos { background: #0A1A0A; border: 1px solid #2A5030; color: #5ABB5A; }
+  .pill-cashout-neg { background: #1A0A0A; border: 1px solid #3A1515; color: #CC4444; }
 
   .player-body { border-top: 1px solid #1E4020; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
   .sec-label { font-size: 8px; letter-spacing: 2px; text-transform: uppercase; color: #7A6228; margin-bottom: 6px; }
@@ -226,12 +241,14 @@ const CSS = `
   .quick-btn { background: #091509; border: 1px solid #1E4020; color: #E8DFC0;
     font-family: 'DM Mono', monospace; font-size: 11px; padding: 8px 14px;
     cursor: pointer; border-radius: 2px; transition: all .15s; }
+  .quick-btn:hover { background: #0E1E0E; border-color: #2E6030; }
   .quick-btn:active, .quick-btn.selected { background: #1E4020; border-color: #C9A84C; color: #C9A84C; }
 
   .forma-btns { display: flex; gap: 6px; }
   .forma-btn { flex: 1; background: #091509; border: 1px solid #1E4020; color: #8A8A8A;
     font-family: 'DM Mono', monospace; font-size: 10px; padding: 9px 6px;
     cursor: pointer; border-radius: 2px; text-align: center; }
+  .forma-btn:hover { background: #0E1E0E; }
   .forma-btn.selected { background: #1A3020; border-color: #6AB; color: #6AB; }
 
   .custom-val { display: flex; gap: 8px; align-items: center; }
@@ -241,13 +258,17 @@ const CSS = `
   .custom-input:focus { border-color: #C9A84C; }
   .custom-input::placeholder { color: #2E4A2E; }
 
+  .cashout-inline { background: #091509; border: 1px solid #2A5030; color: #E8DFC0;
+    font-family: 'DM Mono', monospace; font-size: 15px; padding: 11px 14px;
+    outline: none; width: 100%; border-radius: 2px; transition: border .15s; }
+  .cashout-inline:focus { border-color: #5ABB5A; }
+  .cashout-inline::placeholder { color: #1E4020; }
+
   .confirm-btn { background: #1A3020; border: 1px solid #2A5030; color: #6AB;
     font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px;
     padding: 11px 20px; cursor: pointer; border-radius: 2px; white-space: nowrap; }
   .confirm-btn.gold { background: #C9A84C; color: #091509; border-color: #C9A84C; }
   .confirm-btn.gold:active { background: #F0D080; }
-
-  .bottom-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
   /* ── add bar ── */
   .add-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
@@ -261,6 +282,7 @@ const CSS = `
   .add-btn { background: #C9A84C; border: none; color: #091509;
     font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px;
     padding: 11px 20px; cursor: pointer; border-radius: 2px; flex-shrink: 0; }
+  .add-btn:hover { background: #DDB85C; }
   .add-btn:active { background: #F0D080; transform: scale(.96); }
 
   /* ── overlays ── */
@@ -268,28 +290,14 @@ const CSS = `
     background: rgba(0,0,0,.92); display: flex;
     align-items: flex-end; justify-content: center; z-index: 200; overflow: hidden; }
   .bottom-sheet { background: #0D200F; border-top: 1px solid #C9A84C; width: 100%;
+    max-width: 600px;
     max-height: 92vh; max-height: 92dvh; overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 20px 18px 44px; display: flex; flex-direction: column; gap: 12px; }
   .sheet-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px;
     color: #F0D080; letter-spacing: 3px; text-align: center; flex-shrink: 0; }
 
-  .steps { display: flex; gap: 6px; justify-content: center; }
-  .step-dot { width: 6px; height: 6px; border-radius: 50%; background: #1E4020; flex-shrink: 0; }
-  .step-dot.active { background: #C9A84C; }
-  .step-dot.done { background: #4A7A4A; }
-
-  /* ── cashout ── */
-  .cashout-row { display: flex; align-items: center; gap: 10px;
-    padding: 10px 0; border-bottom: 1px solid #1E4020; }
-  .cashout-name { flex: 1; font-family: 'Bebas Neue', sans-serif; font-size: 17px; color: #F0D080; letter-spacing: 1px; }
-  .cashout-sub { font-size: 7px; color: #4A7A4A; letter-spacing: 1px; }
-  .cashout-input { width: 110px; background: #091509; border: 1px solid #1E4020; color: #E8DFC0;
-    font-family: 'DM Mono', monospace; font-size: 13px; padding: 9px 10px;
-    outline: none; border-radius: 2px; text-align: right; }
-  .cashout-input:focus { border-color: #C9A84C; }
-  .cashout-input::placeholder { color: #2E4A2E; }
-
+  /* ── info rows ── */
   .info-row { display: flex; justify-content: space-between; align-items: center;
     padding: 8px 12px; background: #091509; border: 1px solid #1E4020; border-radius: 2px; }
   .info-lbl { font-size: 8px; color: #4A7A4A; letter-spacing: 1px; text-transform: uppercase; }
@@ -334,10 +342,11 @@ const CSS = `
   .acerto-pago-btn.done { background: #2A5030; color: #91D891; }
   .acerto-badge { font-size: 8px; color: #5ABB5A; letter-spacing: 1px; }
 
-  /* ── histórico ── */
+  /* ── tabs / histórico ── */
   .tab-bar { display: flex; border-bottom: 1px solid #1E4020; flex-shrink: 0; }
   .tab { flex: 1; padding: 8px; font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
     text-align: center; cursor: pointer; color: #4A7A4A; border-bottom: 2px solid transparent; }
+  .tab:hover { color: #6A9A6A; }
   .tab.active { color: #C9A84C; border-bottom-color: #C9A84C; }
   .hist-block { border-bottom: 1px solid #1E4020; padding-bottom: 14px; margin-bottom: 14px; }
   .hist-header { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: baseline; }
@@ -390,16 +399,20 @@ const CSS = `
 `;
 
 function App() {
-  const [mesa, setMesa]               = useState(null);
-  const [loading, setLoading]         = useState(true);
-  const [expanded, setExpanded]       = useState(null);
-  const [addName, setAddName]         = useState("");
-  const [toast, setToast]             = useState(null);
-  const [historico, setHistorico]     = useState([]);
-  const [showHist, setShowHist]       = useState(false);
-  const [histTab, setHistTab]         = useState("mesas");
-  const [confirmRemove, setConfirmRemove]     = useState(null);
+  const [mesa, setMesa]           = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [expanded, setExpanded]   = useState(null);
+  const [addName, setAddName]     = useState("");
+  const [toast, setToast]         = useState(null);
+  const [historico, setHistorico] = useState([]);
+  const [histTab, setHistTab]     = useState("mesas");
+
+  // overlays
+  const [showSetup, setShowSetup]           = useState(false);
+  const [showResultados, setShowResultados] = useState(false);
+  const [acertos, setAcertos]               = useState([]);
   const [confirmNovaMesa, setConfirmNovaMesa] = useState(false);
+  const [confirmRemove, setConfirmRemove]     = useState(null);
 
   const [setupData, setSetupData] = useState({
     data: new Date().toLocaleDateString("pt-BR"),
@@ -414,12 +427,9 @@ function App() {
   const [customBuyin, setCustomBuyin]     = useState("");
   const [selectedBuyin, setSelectedBuyin] = useState(null);
 
-  // encerrar: 0=fechado 1=cashout 2=resultados+acertos
-  const [encStep, setEncStep]   = useState(0);
-  const [cashouts, setCashouts] = useState({});
-  const [acertos, setAcertos]   = useState([]);
-  const [editRake, setEditRake]         = useState(false);
-  const [editRakeVal, setEditRakeVal]   = useState("");
+  // rake edit
+  const [editRake, setEditRake]               = useState(false);
+  const [editRakeVal, setEditRakeVal]         = useState("");
   const [editCaixinhaVal, setEditCaixinhaVal] = useState("");
 
   useEffect(() => {
@@ -430,26 +440,50 @@ function App() {
   }, []);
 
   const persist   = m => { setMesa(m); saveMesa(m); };
-  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2000); };
+  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+
+  // cashouts vivem dentro de mesa.cashouts para persistir entre reloads
+  const cashouts    = mesa?.cashouts || {};
+  const setCashout  = (jId, val) => persist({ ...mesa, cashouts: { ...cashouts, [jId]: val } });
+
+  // derived
+  const rake        = mesa?.rake || { valor: 0, caixinha: 0 };
+  const totalGeral  = mesa ? mesa.jogadores.reduce((s,j) => s+(j.buyin||0)+j.rebuys.reduce((sr,r)=>sr+r.valor,0), 0) : 0;
+  const rakeValor   = rake.valor !== undefined ? rake.valor : Math.round(totalGeral * (rake.percent||0) / 100);
+  const caixinhaVal = rake.caixinha || 0;
+  const potLiquido  = totalGeral - rakeValor - caixinhaVal;
+  const numJog      = mesa ? mesa.jogadores.length : 0;
+  const totalCO     = Object.values(cashouts).reduce((s,v) => s + Number(v||0), 0);
+  const diffCO      = totalCO - potLiquido;
+
+  const salvarEditRake = () => {
+    persist({ ...mesa, rake: { valor: Number(editRakeVal)||0, caixinha: Number(editCaixinhaVal)||0 } });
+    setEditRake(false);
+    showToast("Rake atualizado ✓");
+  };
 
   const iniciarMesa = () => {
     persist({
       id: uid(),
       data: setupData.data,
-      rake: { valor: Number(setupData.rakeValor) || 0, caixinha: Number(setupData.caixinha) || 0 },
+      rake: { valor: Number(setupData.rakeValor)||0, caixinha: Number(setupData.caixinha)||0 },
       jogadores: [],
+      cashouts: {},
     });
+    setShowSetup(false);
     showToast("Mesa iniciada ✓");
   };
 
-  const novaMesa = () => {
+  // abandona mesa ativa sem salvar → volta ao dashboard
+  const descartarMesa = () => {
     persist(null);
-    setEncStep(0);
+    setShowResultados(false);
     setConfirmNovaMesa(false);
     setExpanded(null);
     setEditRake(false);
+    setAcertos([]);
     setSetupData({ data: new Date().toLocaleDateString("pt-BR"), rakeValor: "0", caixinha: "0" });
-    showToast("Mesa encerrada");
+    showToast("Mesa descartada");
   };
 
   const addJogador = () => {
@@ -488,39 +522,14 @@ function App() {
     setConfirmRemove(null); showToast("Jogador removido");
   };
 
-  // derived
-  const rake        = mesa?.rake || { valor: 0, caixinha: 0 };
-  const totalGeral  = mesa ? mesa.jogadores.reduce((s,j) => s+(j.buyin||0)+j.rebuys.reduce((sr,r)=>sr+r.valor,0), 0) : 0;
-  // suporte a mesas antigas que tinham rake.percent
-  const rakeValor   = rake.valor !== undefined ? rake.valor : Math.round(totalGeral * (rake.percent||0) / 100);
-  const caixinhaVal = rake.caixinha || 0;
-  const potLiquido  = totalGeral - rakeValor - caixinhaVal;
-
-  const salvarEditRake = () => {
-    persist({ ...mesa, rake: { valor: Number(editRakeVal)||0, caixinha: Number(editCaixinhaVal)||0 } });
-    setEditRake(false);
-    showToast("Rake atualizado ✓");
-  };
-  const numJog      = mesa ? mesa.jogadores.length : 0;
-  const totalCO     = Object.values(cashouts).reduce((s,v) => s+Number(v||0), 0);
-  const diffCO      = totalCO - potLiquido;
-
-  const abrirEncerrar = () => {
-    const init = {};
-    (mesa.jogadores || []).forEach(j => { init[j.id] = ""; });
-    setCashouts(init); setAcertos([]); setEncStep(1);
-  };
-
-  const calcResultados = () => {
+  const abrirResultados = () => {
     setAcertos(calcularAcertos(mesa.jogadores, cashouts));
-    setEncStep(2);
+    setShowResultados(true);
   };
 
   const marcarAcerto = (id, field, val) =>
     setAcertos(prev => prev.map(a => a.id !== id ? a : { ...a, [field]: val }));
 
-  // BUG FIX: exportarExcel em try-catch — se o download falhar (iOS, CDN offline etc)
-  // a mesa ainda é salva no histórico e encerrada corretamente
   const encerrarMesa = () => {
     const resultados = mesa.jogadores.map(j => {
       const totalPago = (j.buyin||0) + j.rebuys.reduce((s,r)=>s+r.valor,0);
@@ -528,16 +537,17 @@ function App() {
       return { id: j.id, nome: j.nome, totalPago, cashout: saiu, resultado: saiu - totalPago };
     });
     const registro = {
-      ...mesa, cashouts, acertos, resultados,
+      ...mesa, acertos, resultados,
       encerradaEm: new Date().toLocaleString("pt-BR"),
       totalGeral, rakeValor, caixinhaVal, potLiquido,
     };
     const novoHist = [registro, ...loadHistorico()];
     saveHistorico(novoHist);
     setHistorico(novoHist);
-    try { exportarExcel({ ...mesa, cashouts, acertos }); } catch(e) {}
+    try { exportarExcel({ ...mesa, acertos }); } catch(e) {}
     persist(null);
-    setEncStep(0);
+    setShowResultados(false);
+    setAcertos([]);
     showToast("Mesa salva no histórico ✓");
   };
 
@@ -573,7 +583,7 @@ function App() {
         <div className="top-bar">
           <div className="top-logo">
             POKER MAHAU
-            <small>{mesa ? `MESA · ${mesa.data}` : "MESA AO VIVO"}</small>
+            <small>{mesa ? `MESA · ${mesa.data}` : "DASHBOARD"}</small>
           </div>
 
           {mesa && rakeValor > 0 && (
@@ -595,55 +605,130 @@ function App() {
             </div>
           )}
 
-          <div className="top-actions">
-            {/* Histórico — SEMPRE visível */}
-            <button className="top-btn" onClick={() => setShowHist(true)}>
-              {historico.length > 0 ? `hist.(${historico.length})` : "histórico"}
-            </button>
-            {/* Nova Mesa — só quando há mesa ativa */}
-            {mesa && (
+          {mesa && (
+            <div className="top-actions">
               <button className="top-btn danger" onClick={() => setConfirmNovaMesa(true)}>
-                nova mesa
+                descartar
               </button>
-            )}
-            {mesa && (
               <div className="top-right">
                 <div className="top-right-label">Total</div>
                 <div className="top-right-val">{fmtBRL(totalGeral)}</div>
                 <div className="top-right-sub">{numJog} jog.</div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* ── SETUP ── */}
+        {/* ── DASHBOARD (tela inicial — sem mesa ativa) ── */}
         {!mesa && (
-          <div className="setup">
-            <div>
-              <div className="setup-title">MESA<br/>AO VIVO</div>
-              <div className="setup-sub">Poker Mahau · Controle em tempo real</div>
+          <div className="dashboard">
+            <div className="dash-hero">
+              <div className="dash-title">POKER<br/>MAHAU</div>
+              <div className="dash-sub">Confraria · Controle de mesas</div>
             </div>
-            <div className="setup-card">
-              <div>
-                <div className="field-label">Data da Mesa</div>
-                <input className="field-input" value={setupData.data}
-                  onChange={e => setSetupData({...setupData, data: e.target.value})} />
-              </div>
-              <div className="field-row">
-                <div>
-                  <div className="field-label">Rake (R$)</div>
-                  <input className="field-input" type="number" min="0"
-                    value={setupData.rakeValor} placeholder="0"
-                    onChange={e => setSetupData({...setupData, rakeValor: e.target.value})} />
+
+            <div className="dash-nova">
+              <button className="btn-gold" onClick={() => setShowSetup(true)}>
+                + NOVA MESA
+              </button>
+            </div>
+
+            <div className="dash-tabs">
+              <div className="tab-bar">
+                <div className={`tab ${histTab==="mesas"?"active":""}`}
+                  onClick={() => setHistTab("mesas")}>
+                  {historico.length > 0 ? `Mesas (${historico.length})` : "Mesas"}
                 </div>
-                <div>
-                  <div className="field-label">Caixinha (R$)</div>
-                  <input className="field-input" type="number" min="0"
-                    value={setupData.caixinha} placeholder="0"
-                    onChange={e => setSetupData({...setupData, caixinha: e.target.value})} />
+                <div className={`tab ${histTab==="jogadores"?"active":""}`}
+                  onClick={() => setHistTab("jogadores")}>
+                  Jogadores
                 </div>
               </div>
-              <button className="btn-gold" onClick={iniciarMesa}>INICIAR MESA</button>
+            </div>
+
+            <div className="dash-content">
+              {histTab === "mesas" && (
+                <>
+                  {historico.length === 0 && (
+                    <div className="empty-state">
+                      <span>♠</span>
+                      <div>Nenhuma mesa ainda</div>
+                      <div style={{fontSize:9,marginTop:4}}>Crie uma mesa para começar</div>
+                    </div>
+                  )}
+                  {historico.map((h, i) => {
+                    const tB = h.jogadores.reduce((s,j)=>s+(j.buyin||0),0);
+                    const tR = h.jogadores.reduce((s,j)=>s+j.rebuys.reduce((sr,r)=>sr+r.valor,0),0);
+                    return (
+                      <div key={i} className="hist-block" style={{marginTop: i===0?16:0}}>
+                        <div className="hist-header">
+                          <span className="hist-date">{h.data}</span>
+                          <span className="hist-total">{fmtBRL(h.totalGeral)}</span>
+                        </div>
+                        <div className="hist-grid">
+                          {[["Jogadores",h.jogadores.length],["Buy-in",fmtBRL(tB)],["Rebuy",fmtBRL(tR)]].map(([l,v])=>(
+                            <div key={l} className="hist-cell">
+                              <div className="hist-cell-lbl">{l}</div>
+                              <div className="hist-cell-val">{v}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {h.resultados && h.resultados.map(r => (
+                          <div key={r.id||r.nome} className="hist-res-row">
+                            <span className="hist-res-nome">{r.nome}</span>
+                            <span className={`hist-res-val ${r.resultado>0?"pos":r.resultado<0?"neg":""}`}>
+                              {r.resultado>=0?"+":""}{fmtBRL(r.resultado)}
+                            </span>
+                          </div>
+                        ))}
+                        {h.rakeValor > 0 && (
+                          <div style={{fontSize:8,color:"#E86060",letterSpacing:1,marginTop:6}}>
+                            rake {fmtBRL(h.rakeValor)}{h.caixinhaVal>0?` · caixinha ${fmtBRL(h.caixinhaVal)}`:""}
+                          </div>
+                        )}
+                        <div style={{marginTop:8,display:"flex",justifyContent:"flex-end"}}>
+                          <button onClick={() => { try { exportarExcel(h); } catch(e) { showToast("Erro ao exportar"); }}}
+                            style={{background:"#0A200A",border:"1px solid #1A5A1A",color:"#5ABB5A",
+                              fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:1,
+                              textTransform:"uppercase",padding:"6px 12px",cursor:"pointer",borderRadius:2}}>
+                            ⬇ planilha
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+              {histTab === "jogadores" && (
+                <>
+                  {statsJogadores.length === 0 && (
+                    <div className="empty-state">
+                      <span>♣</span>
+                      <div>Nenhum dado ainda</div>
+                      <div style={{fontSize:9,marginTop:4}}>Complete mesas com cashout</div>
+                    </div>
+                  )}
+                  {statsJogadores.map(s => (
+                    <div key={s.nome} className="jogador-stat" style={{marginTop:16}}>
+                      <div className="jogador-stat-header">
+                        <span className="jogador-stat-nome">{s.nome}</span>
+                        <span className={`jogador-stat-res ${s.resultado>0?"pos":s.resultado<0?"neg":"zero"}`}>
+                          {s.resultado>=0?"+":""}{fmtBRL(s.resultado)}
+                        </span>
+                      </div>
+                      <div className="hist-grid">
+                        {[["Partidas",s.partidas],["Investido",fmtBRL(s.totalInvestido)],["Cashout",fmtBRL(s.totalCashout)]].map(([l,v])=>(
+                          <div key={l} className="hist-cell">
+                            <div className="hist-cell-lbl">{l}</div>
+                            <div className="hist-cell-val">{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         )}
@@ -653,7 +738,7 @@ function App() {
           <>
             <div className="main">
 
-              {/* Banner rake — sempre visível, com edição inline */}
+              {/* Rake banner com edição inline */}
               <div className="rake-banner">
                 {!editRake ? (
                   <>
@@ -696,12 +781,16 @@ function App() {
                 )}
               </div>
 
-              {/* Banner encerrar — sempre visível */}
-              <div className="encerrar-banner" onClick={abrirEncerrar}>
+              {/* Banner encerrar — abre resultados diretamente */}
+              <div className="encerrar-banner" onClick={abrirResultados}>
                 <div>
                   <div className="encerrar-banner-label">Fim de jogo</div>
-                  <div className="encerrar-banner-title">ENCERRAR / CASHOUT</div>
-                  <div className="encerrar-banner-sub">Registra resultados e acertos entre jogadores</div>
+                  <div className="encerrar-banner-title">VER RESULTADOS</div>
+                  <div className="encerrar-banner-sub">
+                    {Object.values(cashouts).filter(v => v).length > 0
+                      ? `${Object.values(cashouts).filter(v=>v).length} de ${numJog} cashouts preenchidos`
+                      : "Preencha o cashout em cada jogador"}
+                  </div>
                 </div>
                 <div className="encerrar-banner-arrow">›</div>
               </div>
@@ -714,24 +803,35 @@ function App() {
               )}
 
               {mesa.jogadores.map(j => {
-                const totalJ   = (j.buyin||0) + j.rebuys.reduce((s,r)=>s+r.valor,0);
-                const isExp    = expanded === j.id;
-                const temBuyin = j.buyin > 0;
+                const totalJ    = (j.buyin||0) + j.rebuys.reduce((s,r)=>s+r.valor,0);
+                const isExp     = expanded === j.id;
+                const temBuyin  = j.buyin > 0;
+                const coCur     = cashouts[j.id];
+                const temCO     = coCur !== undefined && coCur !== "";
+                const coNum     = Number(coCur||0);
+                const saldoCO   = coNum - totalJ;
 
                 return (
-                  <div key={j.id} className={`player-card ${isExp ? "expanded" : ""}`}>
+                  <div key={j.id} className={`player-card ${isExp?"expanded":""} ${temCO&&!isExp?"has-cashout":""}`}>
                     <div className="player-head" onClick={() => setExpanded(isExp ? null : j.id)}>
                       <div className="player-left">
                         <div className="player-name">{j.nome}</div>
                         <div className="player-meta">
-                          {temBuyin
-                            ? `buy-in ${fmtBRL(j.buyin)} · ${j.rebuys.length} rebuy${j.rebuys.length!==1?"s":""}`
-                            : "aguardando buy-in..."}
+                          {temCO
+                            ? `saiu ${fmtBRL(coNum)} · ${saldoCO>=0?"+":""}${fmtBRL(saldoCO)}`
+                            : temBuyin
+                              ? `buy-in ${fmtBRL(j.buyin)} · ${j.rebuys.length} rebuy${j.rebuys.length!==1?"s":""}`
+                              : "aguardando buy-in..."}
                         </div>
                       </div>
                       <div className="player-right">
-                        <div className="player-total">{fmtBRL(totalJ)}</div>
-                        <div className="player-pago">{isExp ? "fechar ▲" : "ver ▼"}</div>
+                        <div className="player-total"
+                          style={temCO ? {color: saldoCO>=0?"#5ABB5A":"#CC4444"} : {}}>
+                          {temCO ? fmtBRL(coNum) : fmtBRL(totalJ)}
+                        </div>
+                        <div className="player-pago">
+                          {temCO ? (saldoCO>=0?"lucro ▲":"perda ▼") : (isExp?"fechar ▲":"ver ▼")}
+                        </div>
                       </div>
                     </div>
 
@@ -747,11 +847,18 @@ function App() {
                             rebuy {fmtBRL(r.valor)}<span className="pill-forma">{r.forma}</span>
                           </span>
                         ))}
+                        {temCO && (
+                          <span className={`pill ${saldoCO>=0?"pill-cashout-pos":"pill-cashout-neg"}`}>
+                            cashout {fmtBRL(coNum)}
+                          </span>
+                        )}
                       </div>
                     )}
 
                     {isExp && (
                       <div className="player-body">
+
+                        {/* Buy-in */}
                         <div>
                           <div className="sec-label">
                             {temBuyin ? `✓ Buy-in: ${fmtBRL(j.buyin)} · ${j.buyinForma}` : "Buy-in"}
@@ -795,6 +902,7 @@ function App() {
                           )}
                         </div>
 
+                        {/* Rebuy */}
                         <div>
                           <div className="sec-label">+ Rebuy</div>
                           <div className="quick-btns" style={{marginBottom:8}}>
@@ -824,12 +932,34 @@ function App() {
                           </div>
                         </div>
 
-                        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-                          {mesa.jogadores.length > 0 && (
-                            <button className="btn-excel" onClick={() => exportarExcel(mesa)}>
-                              ⬇ Planilha
-                            </button>
+                        {/* Cashout individual */}
+                        <div style={{borderTop:"1px solid #1E4020",paddingTop:12}}>
+                          <div className="sec-label">Cashout — saída do jogador</div>
+                          <input className="cashout-inline" type="number" min="0"
+                            value={coCur || ""}
+                            placeholder="0"
+                            onChange={e => setCashout(j.id, e.target.value)} />
+                          {temCO ? (
+                            <div style={{fontSize:9,marginTop:8,letterSpacing:1,display:"flex",justifyContent:"space-between"}}>
+                              <span style={{color:"#4A7A4A"}}>investiu {fmtBRL(totalJ)}</span>
+                              <span style={{
+                                color: saldoCO>=0?"#5ABB5A":"#CC4444",
+                                fontFamily:"'Bebas Neue',sans-serif", fontSize:15
+                              }}>
+                                {saldoCO>=0?"+":""}{fmtBRL(saldoCO)}
+                              </span>
+                            </div>
+                          ) : (
+                            <div style={{fontSize:9,color:"#2E4A2E",marginTop:6,letterSpacing:1}}>
+                              Preencha ao sair do jogo
+                            </div>
                           )}
+                        </div>
+
+                        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+                          <button className="btn-excel" onClick={() => { try { exportarExcel(mesa); } catch(e) { showToast("Erro ao exportar"); }}}>
+                            ⬇ Planilha
+                          </button>
                           <button className="btn-red" onClick={() => remJogador(j.id)}>
                             Remover
                           </button>
@@ -853,19 +983,41 @@ function App() {
           </>
         )}
 
-        {/* ── ENCERRAR STEP 1: CASHOUT ── */}
-        {encStep === 1 && mesa && (
-          <div className="overlay" onClick={() => setEncStep(0)}>
+        {/* ── MODAL: NOVA MESA (a partir do dashboard) ── */}
+        {showSetup && (
+          <div className="overlay" onClick={() => setShowSetup(false)}>
             <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
-              <div className="steps">
-                <div className="step-dot active"></div>
-                <div className="step-dot"></div>
-                <div className="step-dot"></div>
+              <div className="sheet-title">NOVA MESA</div>
+              <div>
+                <div className="field-label">Data da Mesa</div>
+                <input className="field-input" value={setupData.data}
+                  onChange={e => setSetupData({...setupData, data: e.target.value})} />
               </div>
-              <div className="sheet-title">CASHOUT</div>
-              <div style={{fontSize:9,color:"#4A7A4A",letterSpacing:1,textAlign:"center"}}>
-                Quanto cada jogador saiu com?
+              <div className="field-row">
+                <div>
+                  <div className="field-label">Rake (R$)</div>
+                  <input className="field-input" type="number" min="0"
+                    value={setupData.rakeValor} placeholder="0"
+                    onChange={e => setSetupData({...setupData, rakeValor: e.target.value})} />
+                </div>
+                <div>
+                  <div className="field-label">Caixinha (R$)</div>
+                  <input className="field-input" type="number" min="0"
+                    value={setupData.caixinha} placeholder="0"
+                    onChange={e => setSetupData({...setupData, caixinha: e.target.value})} />
+                </div>
               </div>
+              <button className="btn-gold" onClick={iniciarMesa}>INICIAR MESA</button>
+              <button className="btn-outline" onClick={() => setShowSetup(false)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── RESULTADOS + ACERTOS ── */}
+        {showResultados && mesa && (
+          <div className="overlay" onClick={() => setShowResultados(false)}>
+            <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+              <div className="sheet-title">RESULTADOS</div>
 
               {rakeValor > 0 && (
                 <div className="info-row rake">
@@ -884,27 +1036,6 @@ function App() {
                 <span className="info-val">{fmtBRL(potLiquido)}</span>
               </div>
 
-              {mesa.jogadores.length === 0 && (
-                <div style={{textAlign:"center",color:"#4A7A4A",fontSize:10,padding:"12px 0",letterSpacing:1}}>
-                  Nenhum jogador na mesa
-                </div>
-              )}
-
-              {mesa.jogadores.map(j => {
-                const totalPago = (j.buyin||0) + j.rebuys.reduce((s,r)=>s+r.valor,0);
-                return (
-                  <div key={j.id} className="cashout-row">
-                    <div style={{flex:1}}>
-                      <div className="cashout-name">{j.nome}</div>
-                      <div className="cashout-sub">investiu {fmtBRL(totalPago)}</div>
-                    </div>
-                    <input className="cashout-input" type="number" placeholder="0"
-                      value={cashouts[j.id] || ""}
-                      onChange={e => setCashouts(prev => ({...prev, [j.id]: e.target.value}))} />
-                  </div>
-                );
-              })}
-
               {totalCO > 0 && (
                 <div className={Math.abs(diffCO) < 1 ? "diff-ok" : "diff-warn"}>
                   {Math.abs(diffCO) < 1
@@ -912,23 +1043,6 @@ function App() {
                     : `Diferença de ${fmtBRL(Math.abs(diffCO))} em relação ao pote`}
                 </div>
               )}
-
-              <button className="btn-gold" onClick={calcResultados}>VER RESULTADOS →</button>
-              <button className="btn-outline" onClick={() => setEncStep(0)}>Cancelar</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── ENCERRAR STEP 2: RESULTADOS + ACERTOS ── */}
-        {encStep === 2 && mesa && (
-          <div className="overlay" onClick={() => setEncStep(1)}>
-            <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
-              <div className="steps">
-                <div className="step-dot done"></div>
-                <div className="step-dot active"></div>
-                <div className="step-dot"></div>
-              </div>
-              <div className="sheet-title">RESULTADOS</div>
 
               {mesa.jogadores.map(j => {
                 const totalPago = (j.buyin||0) + j.rebuys.reduce((s,r)=>s+r.valor,0);
@@ -948,19 +1062,6 @@ function App() {
                 );
               })}
 
-              {rakeValor > 0 && (
-                <div className="info-row rake" style={{marginTop:4}}>
-                  <span className="info-lbl">Rake</span>
-                  <span className="info-val">{fmtBRL(rakeValor)}</span>
-                </div>
-              )}
-              {caixinhaVal > 0 && (
-                <div className="info-row caix">
-                  <span className="info-lbl">Caixinha</span>
-                  <span className="info-val">{fmtBRL(caixinhaVal)}</span>
-                </div>
-              )}
-
               <div style={{borderTop:"1px solid #1E4020",paddingTop:10}}>
                 <div style={{fontSize:8,color:"#7A6228",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>
                   Acertos — quem paga quem
@@ -971,7 +1072,7 @@ function App() {
                   </div>
                 )}
                 {acertos.map(a => (
-                  <div key={a.id} className={`acerto-card ${a.pago ? "pago" : ""}`} style={{marginBottom:8}}>
+                  <div key={a.id} className={`acerto-card ${a.pago?"pago":""}`} style={{marginBottom:8}}>
                     <div className="acerto-top">
                       <div className="acerto-names">
                         <div className="acerto-de">{a.de}</div>
@@ -1004,126 +1105,22 @@ function App() {
               </div>
 
               <button className="btn-gold" onClick={encerrarMesa}>SALVAR E ENCERRAR MESA</button>
-              <button className="btn-outline" onClick={() => setEncStep(1)}>← Voltar ao cashout</button>
+              <button className="btn-outline" onClick={() => setShowResultados(false)}>Fechar</button>
             </div>
           </div>
         )}
 
-        {/* ── HISTÓRICO ── */}
-        {showHist && (
-          <div className="overlay" onClick={() => setShowHist(false)}>
-            <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
-              <div className="sheet-title">HISTÓRICO</div>
-              <div className="tab-bar">
-                <div className={`tab ${histTab==="mesas"?"active":""}`}
-                  onClick={() => setHistTab("mesas")}>Mesas</div>
-                <div className={`tab ${histTab==="jogadores"?"active":""}`}
-                  onClick={() => setHistTab("jogadores")}>Jogadores</div>
-              </div>
-
-              {histTab === "mesas" && (
-                <div>
-                  {historico.length === 0 && (
-                    <div style={{textAlign:"center",color:"#4A7A4A",fontSize:11,padding:"32px 0",letterSpacing:1}}>
-                      Nenhuma mesa encerrada ainda.<br/>
-                      <span style={{fontSize:9,display:"block",marginTop:8}}>
-                        Encerre uma mesa para ver o histórico aqui.
-                      </span>
-                    </div>
-                  )}
-                  {historico.map((h, i) => {
-                    const tB = h.jogadores.reduce((s,j)=>s+(j.buyin||0),0);
-                    const tR = h.jogadores.reduce((s,j)=>s+j.rebuys.reduce((sr,r)=>sr+r.valor,0),0);
-                    return (
-                      <div key={i} className="hist-block">
-                        <div className="hist-header">
-                          <span className="hist-date">{h.data}</span>
-                          <span className="hist-total">{fmtBRL(h.totalGeral)}</span>
-                        </div>
-                        <div className="hist-grid">
-                          {[["Jogadores",h.jogadores.length],["Buy-in",fmtBRL(tB)],["Rebuy",fmtBRL(tR)]].map(([l,v])=>(
-                            <div key={l} className="hist-cell">
-                              <div className="hist-cell-lbl">{l}</div>
-                              <div className="hist-cell-val">{v}</div>
-                            </div>
-                          ))}
-                        </div>
-                        {h.resultados && h.resultados.map(r => (
-                          <div key={r.id || r.nome} className="hist-res-row">
-                            <span className="hist-res-nome">{r.nome}</span>
-                            <span className={`hist-res-val ${r.resultado>0?"pos":r.resultado<0?"neg":""}`}>
-                              {r.resultado>=0?"+":""}{fmtBRL(r.resultado)}
-                            </span>
-                          </div>
-                        ))}
-                        {h.rakeValor > 0 && (
-                          <div style={{fontSize:8,color:"#E86060",letterSpacing:1,marginTop:6}}>
-                            rake {fmtBRL(h.rakeValor)}{h.caixinhaVal>0?` · caixinha ${fmtBRL(h.caixinhaVal)}`:""}
-                          </div>
-                        )}
-                        <div style={{marginTop:8,display:"flex",justifyContent:"flex-end"}}>
-                          <button onClick={() => { try { exportarExcel(h); } catch(e) { showToast("Erro ao exportar"); } }}
-                            style={{background:"#0A200A",border:"1px solid #1A5A1A",color:"#5ABB5A",
-                              fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:1,
-                              textTransform:"uppercase",padding:"6px 12px",cursor:"pointer",borderRadius:2}}>
-                            ⬇ re-exportar
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {histTab === "jogadores" && (
-                <div>
-                  {statsJogadores.length === 0 && (
-                    <div style={{textAlign:"center",color:"#4A7A4A",fontSize:11,padding:"32px 0",letterSpacing:1}}>
-                      Nenhum dado ainda.<br/>
-                      <span style={{fontSize:9,display:"block",marginTop:8}}>
-                        Complete mesas com cashout para ver stats aqui.
-                      </span>
-                    </div>
-                  )}
-                  {statsJogadores.map(s => (
-                    <div key={s.nome} className="jogador-stat">
-                      <div className="jogador-stat-header">
-                        <span className="jogador-stat-nome">{s.nome}</span>
-                        <span className={`jogador-stat-res ${s.resultado>0?"pos":s.resultado<0?"neg":"zero"}`}>
-                          {s.resultado>=0?"+":""}{fmtBRL(s.resultado)}
-                        </span>
-                      </div>
-                      <div className="hist-grid">
-                        {[["Partidas",s.partidas],["Investido",fmtBRL(s.totalInvestido)],["Cashout",fmtBRL(s.totalCashout)]].map(([l,v])=>(
-                          <div key={l} className="hist-cell">
-                            <div className="hist-cell-lbl">{l}</div>
-                            <div className="hist-cell-val">{v}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <button className="btn-outline" onClick={() => setShowHist(false)}>Fechar</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── CONFIRMAR NOVA MESA (abandona mesa ativa) ── */}
+        {/* ── CONFIRMAR DESCARTAR MESA ── */}
         {confirmNovaMesa && (
           <div className="confirm-modal">
             <div className="confirm-box">
               <div className="confirm-icon">♠</div>
-              <div className="confirm-title">Nova Mesa?</div>
-              <div className="confirm-name">
-                A mesa atual será descartada sem salvar.
-              </div>
-              <div className="confirm-sub">Para salvar o histórico, encerre pelo cashout</div>
+              <div className="confirm-title">Descartar Mesa?</div>
+              <div className="confirm-name">A mesa atual será descartada sem salvar.</div>
+              <div className="confirm-sub">Para salvar, feche este diálogo e clique em "Ver Resultados"</div>
               <div className="confirm-btns">
                 <button className="btn-red" style={{width:"100%",padding:"12px",fontSize:12}}
-                  onClick={novaMesa}>
+                  onClick={descartarMesa}>
                   Descartar e criar nova
                 </button>
                 <button className="btn-outline" style={{width:"100%",padding:"12px"}}
@@ -1139,7 +1136,7 @@ function App() {
         {confirmRemove && (
           <div className="confirm-modal">
             <div className="confirm-box">
-              <div className="confirm-icon">⚠️</div>
+              <div className="confirm-icon">⚠</div>
               <div className="confirm-title">Remover jogador?</div>
               <div className="confirm-name">{confirmRemove.nome}</div>
               <div className="confirm-sub">Essa ação não pode ser desfeita</div>
