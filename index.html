@@ -90,11 +90,11 @@ function exportarExcel(mesa) {
   });
   const totalBuyin = mesa.jogadores.reduce((s,j) => s+(j.buyin||0), 0);
   const totalRebuy = mesa.jogadores.reduce((s,j) => s+j.rebuys.reduce((sr,r)=>sr+r.valor,0), 0);
-  const rake       = mesa.rake || { percent: 0, caixinha: 0 };
+  const rake       = mesa.rake || { valor: 0, caixinha: 0 };
   const totalGeral = totalBuyin + totalRebuy;
-  const rakeValor  = Math.round(totalGeral * rake.percent / 100);
+  const rakeValor  = rake.valor !== undefined ? rake.valor : Math.round(totalGeral * (rake.percent||0) / 100);
   rows.push({ "Jogador": "TOTAL", "Buy-in (R$)": totalBuyin, "Forma Buy-in": "", "Total Rebuy (R$)": totalRebuy, "Qtd Rebuys": "", "Total Pago (R$)": totalGeral, "Cashout (R$)": "", "Resultado (R$)": "" });
-  if (rake.percent > 0)  rows.push({ "Jogador": `Rake ${rake.percent}%`, "Buy-in (R$)": rakeValor, "Forma Buy-in": "", "Total Rebuy (R$)": "", "Qtd Rebuys": "", "Total Pago (R$)": "", "Cashout (R$)": "", "Resultado (R$)": "" });
+  if (rakeValor > 0)     rows.push({ "Jogador": "Rake", "Buy-in (R$)": rakeValor, "Forma Buy-in": "", "Total Rebuy (R$)": "", "Qtd Rebuys": "", "Total Pago (R$)": "", "Cashout (R$)": "", "Resultado (R$)": "" });
   if (rake.caixinha > 0) rows.push({ "Jogador": "Caixinha", "Buy-in (R$)": rake.caixinha, "Forma Buy-in": "", "Total Rebuy (R$)": "", "Qtd Rebuys": "", "Total Pago (R$)": "", "Cashout (R$)": "", "Resultado (R$)": "" });
   if (mesa.acertos && mesa.acertos.length > 0) {
     rows.push({ "Jogador": "── ACERTOS ──" });
@@ -403,7 +403,7 @@ function App() {
 
   const [setupData, setSetupData] = useState({
     data: new Date().toLocaleDateString("pt-BR"),
-    rakePercent: "5",
+    rakeValor: "0",
     caixinha: "0",
   });
 
@@ -418,6 +418,9 @@ function App() {
   const [encStep, setEncStep]   = useState(0);
   const [cashouts, setCashouts] = useState({});
   const [acertos, setAcertos]   = useState([]);
+  const [editRake, setEditRake]         = useState(false);
+  const [editRakeVal, setEditRakeVal]   = useState("");
+  const [editCaixinhaVal, setEditCaixinhaVal] = useState("");
 
   useEffect(() => {
     const d = loadMesa();
@@ -433,7 +436,7 @@ function App() {
     persist({
       id: uid(),
       data: setupData.data,
-      rake: { percent: Number(setupData.rakePercent) || 0, caixinha: Number(setupData.caixinha) || 0 },
+      rake: { valor: Number(setupData.rakeValor) || 0, caixinha: Number(setupData.caixinha) || 0 },
       jogadores: [],
     });
     showToast("Mesa iniciada ✓");
@@ -444,7 +447,8 @@ function App() {
     setEncStep(0);
     setConfirmNovaMesa(false);
     setExpanded(null);
-    setSetupData({ data: new Date().toLocaleDateString("pt-BR"), rakePercent: "5", caixinha: "0" });
+    setEditRake(false);
+    setSetupData({ data: new Date().toLocaleDateString("pt-BR"), rakeValor: "0", caixinha: "0" });
     showToast("Mesa encerrada");
   };
 
@@ -485,11 +489,18 @@ function App() {
   };
 
   // derived
-  const rake        = mesa?.rake || { percent: 0, caixinha: 0 };
+  const rake        = mesa?.rake || { valor: 0, caixinha: 0 };
   const totalGeral  = mesa ? mesa.jogadores.reduce((s,j) => s+(j.buyin||0)+j.rebuys.reduce((sr,r)=>sr+r.valor,0), 0) : 0;
-  const rakeValor   = Math.round(totalGeral * rake.percent / 100);
+  // suporte a mesas antigas que tinham rake.percent
+  const rakeValor   = rake.valor !== undefined ? rake.valor : Math.round(totalGeral * (rake.percent||0) / 100);
   const caixinhaVal = rake.caixinha || 0;
   const potLiquido  = totalGeral - rakeValor - caixinhaVal;
+
+  const salvarEditRake = () => {
+    persist({ ...mesa, rake: { valor: Number(editRakeVal)||0, caixinha: Number(editCaixinhaVal)||0 } });
+    setEditRake(false);
+    showToast("Rake atualizado ✓");
+  };
   const numJog      = mesa ? mesa.jogadores.length : 0;
   const totalCO     = Object.values(cashouts).reduce((s,v) => s+Number(v||0), 0);
   const diffCO      = totalCO - potLiquido;
@@ -565,10 +576,10 @@ function App() {
             <small>{mesa ? `MESA · ${mesa.data}` : "MESA AO VIVO"}</small>
           </div>
 
-          {mesa && rake.percent > 0 && (
+          {mesa && rakeValor > 0 && (
             <div className="top-chips">
               <div className="top-chip rake">
-                <div className="top-chip-label">Rake {rake.percent}%</div>
+                <div className="top-chip-label">Rake</div>
                 <div className="top-chip-val">{fmtBRL(rakeValor)}</div>
               </div>
               {caixinhaVal > 0 && (
@@ -620,10 +631,10 @@ function App() {
               </div>
               <div className="field-row">
                 <div>
-                  <div className="field-label">Rake (%)</div>
-                  <input className="field-input" type="number" min="0" max="30"
-                    value={setupData.rakePercent} placeholder="5"
-                    onChange={e => setSetupData({...setupData, rakePercent: e.target.value})} />
+                  <div className="field-label">Rake (R$)</div>
+                  <input className="field-input" type="number" min="0"
+                    value={setupData.rakeValor} placeholder="0"
+                    onChange={e => setSetupData({...setupData, rakeValor: e.target.value})} />
                 </div>
                 <div>
                   <div className="field-label">Caixinha (R$)</div>
@@ -642,25 +653,48 @@ function App() {
           <>
             <div className="main">
 
-              {/* Banner rake */}
-              {rake.percent > 0 && totalGeral > 0 && (
-                <div className="rake-banner">
-                  <div className="rake-banner-col">
-                    <div className="rake-banner-lbl" style={{color:"#E86060"}}>Rake {rake.percent}%</div>
-                    <div className="rake-banner-val" style={{color:"#E86060"}}>{fmtBRL(rakeValor)}</div>
-                  </div>
-                  <div className="rake-banner-col" style={{alignItems:"center"}}>
-                    <div className="rake-banner-lbl" style={{color:"#4A7A4A"}}>Pote líquido</div>
-                    <div className="rake-banner-val" style={{color:"#F0D080"}}>{fmtBRL(potLiquido)}</div>
-                  </div>
-                  {caixinhaVal > 0 && (
-                    <div className="rake-banner-col" style={{alignItems:"flex-end"}}>
-                      <div className="rake-banner-lbl" style={{color:"#60AABB"}}>Caixinha</div>
-                      <div className="rake-banner-val" style={{color:"#60AABB"}}>{fmtBRL(caixinhaVal)}</div>
+              {/* Banner rake — sempre visível, com edição inline */}
+              <div className="rake-banner">
+                {!editRake ? (
+                  <>
+                    <div className="rake-banner-col">
+                      <div className="rake-banner-lbl" style={{color:"#E86060"}}>Rake</div>
+                      <div className="rake-banner-val" style={{color:"#E86060"}}>{fmtBRL(rakeValor)}</div>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div className="rake-banner-col" style={{alignItems:"center"}}>
+                      <div className="rake-banner-lbl" style={{color:"#4A7A4A"}}>Pote líquido</div>
+                      <div className="rake-banner-val" style={{color:"#F0D080"}}>{fmtBRL(potLiquido)}</div>
+                    </div>
+                    {caixinhaVal > 0 && (
+                      <div className="rake-banner-col" style={{alignItems:"flex-end"}}>
+                        <div className="rake-banner-lbl" style={{color:"#60AABB"}}>Caixinha</div>
+                        <div className="rake-banner-val" style={{color:"#60AABB"}}>{fmtBRL(caixinhaVal)}</div>
+                      </div>
+                    )}
+                    <button className="top-btn" style={{flexShrink:0,alignSelf:"center"}}
+                      onClick={() => { setEditRakeVal(String(rakeValor)); setEditCaixinhaVal(String(caixinhaVal)); setEditRake(true); }}>
+                      editar
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{display:"flex",gap:8,flex:1}}>
+                      <div style={{flex:1}}>
+                        <div className="rake-banner-lbl" style={{color:"#E86060",marginBottom:4}}>Rake (R$)</div>
+                        <input className="custom-input" type="number" min="0"
+                          value={editRakeVal} onChange={e => setEditRakeVal(e.target.value)} />
+                      </div>
+                      <div style={{flex:1}}>
+                        <div className="rake-banner-lbl" style={{color:"#60AABB",marginBottom:4}}>Caixinha (R$)</div>
+                        <input className="custom-input" type="number" min="0"
+                          value={editCaixinhaVal} onChange={e => setEditCaixinhaVal(e.target.value)} />
+                      </div>
+                    </div>
+                    <button className="confirm-btn gold" style={{flexShrink:0,alignSelf:"flex-end"}}
+                      onClick={salvarEditRake}>OK</button>
+                  </>
+                )}
+              </div>
 
               {/* Banner encerrar — sempre visível */}
               <div className="encerrar-banner" onClick={abrirEncerrar}>
@@ -833,9 +867,9 @@ function App() {
                 Quanto cada jogador saiu com?
               </div>
 
-              {rake.percent > 0 && (
+              {rakeValor > 0 && (
                 <div className="info-row rake">
-                  <span className="info-lbl">Rake {rake.percent}%</span>
+                  <span className="info-lbl">Rake</span>
                   <span className="info-val">− {fmtBRL(rakeValor)}</span>
                 </div>
               )}
@@ -914,9 +948,9 @@ function App() {
                 );
               })}
 
-              {rake.percent > 0 && (
+              {rakeValor > 0 && (
                 <div className="info-row rake" style={{marginTop:4}}>
-                  <span className="info-lbl">Rake {rake.percent}%</span>
+                  <span className="info-lbl">Rake</span>
                   <span className="info-val">{fmtBRL(rakeValor)}</span>
                 </div>
               )}
